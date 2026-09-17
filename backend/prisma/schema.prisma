@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscription UserSubscription?
+  watchHistory WatchHistory[]
+  purchases    VideoPurchase[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Subscription {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  price       Float
+  duration    Int
+  features    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users UserSubscription[]
+}
+
+model UserSubscription {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  subscriptionId String
+  startDate      DateTime @default(now())
+  endDate        DateTime
+  active         Boolean  @default(true)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([userId])
+  @@index([subscriptionId])
+}
+
+model Video {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  duration    Int?
+  thumbnail   String?
+  videoPath   String
+  hlsPath     String?
+  status      VideoStatus @default(PROCESSING)
+  views       Int        @default(0)
+  categoryId  String?
+  price       Float?
+  isPremium   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  category      Category?       @relation(fields: [categoryId], references: [id])
+  watchHistory  WatchHistory[]
+  purchases     VideoPurchase[]
+  videoPackages VideoPackage[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([isPremium])
+}
+
+enum VideoStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  videos Video[]
+}
+
+model VideoPackage {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  price       Float
+  videoIds    String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  videos    Video[]
+  purchases VideoPurchase[]
+}
+
+model VideoPurchase {
+  id        String   @id @default(uuid())
+  userId    String
+  videoId   String?
+  packageId String?
+  price     Float
+  createdAt DateTime @default(now())
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video   Video?        @relation(fields: [videoId], references: [id])
+  package VideoPackage? @relation(fields: [packageId], references: [id])
+
+  @@index([userId])
+  @@index([videoId])
+  @@index([packageId])
+}
+
+model WatchHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  videoId   String
+  progress  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([userId])
+  @@index([videoId])
+}
+
+model LiveStream {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  streamKey   String       @unique
+  status      StreamStatus @default(OFFLINE)
+  thumbnail   String?
+  viewerCount Int          @default(0)
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status])
+}
+
+enum StreamStatus {
+  OFFLINE
+  LIVE
+  ENDED
+}
